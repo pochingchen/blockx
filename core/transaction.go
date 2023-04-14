@@ -1,15 +1,25 @@
 package core
 
-import "io"
+import (
+	"blockx/crypto"
+)
 
+// Transaction 交易
 type Transaction struct {
-	Data []byte
+	Data      []byte
+	PublicKey crypto.PublicKey
+	Signature *crypto.Signature
 }
 
-func (t *Transaction) EncodeBinary(w io.Writer) error {
-	return nil
-}
+// Sign 签名交易
+func (tx *Transaction) Sign(privKey crypto.PrivateKey) (*crypto.Signature, error) {
+	sig, err := privKey.Sign(tx.Data)
+	if err != nil {
+		return nil, err
+	}
 
-func (t *Transaction) DecodeBinary(r io.Reader) error {
-	return nil
+	tx.PublicKey = privKey.PublicKey()
+	tx.Signature = sig
+
+	return sig, nil
 }
