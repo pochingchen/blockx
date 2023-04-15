@@ -13,8 +13,8 @@ type BlockHasher struct {
 }
 
 // Hash 计算区块哈希
-func (BlockHasher) Hash(b *Block) types.Hash {
-	h := sha256.Sum256(b.HeaderBytes())
+func (BlockHasher) Hash(b *Header) types.Hash {
+	h := sha256.Sum256(b.Bytes())
 
 	return h
 }
