@@ -5,7 +5,7 @@ run: build
 	./build/blockx
 
 test:
-	go test -v ./...
+	go test ./...
 
 clean:
 	rm -rf ./build
