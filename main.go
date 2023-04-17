@@ -19,7 +19,9 @@ func main() {
 		}
 	}()
 
-	opts := network.ServerOpts{Transports: []network.Transport{trLocal}}
+	opts := network.ServerOpts{
+		Transports: []network.Transport{trLocal},
+	}
 	s := network.NewServer(opts)
 	s.Start()
 }
