@@ -1,7 +1,7 @@
 build:
 	go build -o ./build/blockx
 
-run: build
+run: clean build
 	./build/blockx
 
 test:
