@@ -6,6 +6,7 @@ import (
 	"blockx/network"
 	"bytes"
 	"github.com/sirupsen/logrus"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -35,7 +36,10 @@ func main() {
 		Transports: []network.Transport{trLocal},
 	}
 
-	s := network.NewServer(opts)
+	s, err := network.NewServer(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
 	s.Start()
 }
 

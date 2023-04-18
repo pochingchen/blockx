@@ -6,6 +6,10 @@ import (
 	"sync"
 )
 
+type Chainer interface {
+	AddBlock()
+}
+
 // Blockchain 区块链
 type Blockchain struct {
 	store     Storage

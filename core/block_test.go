@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-func randomBlock(height uint64, prevBlockHash types.Hash) *Block {
+func randomBlock(t *testing.T, height uint64, prevBlockHash types.Hash) *Block {
+	privKey := crypto.GeneratePrivateKey()
+	tx := randomTxWithSignature(t)
+
 	header := &Header{
 		Version:       1,
 		PrevBlockHash: prevBlockHash,
@@ -16,30 +19,27 @@ func randomBlock(height uint64, prevBlockHash types.Hash) *Block {
 		Height:        height,
 	}
 
-	return NewBlock(header, []Transaction{})
-}
+	b, err := NewBlock(header, []Transaction{tx})
+	assert.Nil(t, err)
 
-func randomBlockWithSignature(t *testing.T, height uint64, prevBlockHash types.Hash) *Block {
-	privKey := crypto.GeneratePrivateKey()
-	b := randomBlock(height, prevBlockHash)
-
-	tx := randomTxWithSignature(t)
-	b.AddTransaction(tx)
-
+	dataHash, err := CalculateDataHash(b.Transactions)
+	assert.Nil(t, err)
+	b.Header.DataHash = dataHash
 	assert.Nil(t, b.Sign(privKey))
+
 	return b
 }
 
 func TestSignBlock(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
-	b := randomBlock(0, types.Hash{})
+	b := randomBlock(t, 0, types.Hash{})
 	assert.Nil(t, b.Sign(privKey))
 	assert.NotNil(t, b.Signature)
 }
 
 func TestVerifyBlock(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
-	b := randomBlock(0, types.Hash{})
+	b := randomBlock(t, 0, types.Hash{})
 	assert.Nil(t, b.Sign(privKey))
 	assert.Nil(t, b.Verify())
 

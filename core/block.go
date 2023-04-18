@@ -4,8 +4,10 @@ import (
 	"blockx/crypto"
 	"blockx/types"
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
+	"time"
 )
 
 // Header 区块头
@@ -35,11 +37,28 @@ type Block struct {
 }
 
 // NewBlock 创建新区块
-func NewBlock(h *Header, txx []Transaction) *Block {
+func NewBlock(h *Header, txs []Transaction) (*Block, error) {
 	return &Block{
 		Header:       h,
-		Transactions: txx,
+		Transactions: txs,
+	}, nil
+}
+
+func NewBlockFromPrevHeader(prevHeader *Header, txs []Transaction) (*Block, error) {
+	dataHash, err := CalculateDataHash(txs)
+	if err != nil {
+		return nil, err
 	}
+
+	header := &Header{
+		Version:       1,
+		DataHash:      dataHash,
+		PrevBlockHash: BlockHasher{}.Hash(prevHeader),
+		Timestamp:     time.Now().UnixNano(),
+		Height:        prevHeader.Height + 1,
+	}
+
+	return NewBlock(header, txs)
 }
 
 func (b *Block) AddTransaction(tx *Transaction) {
@@ -73,6 +92,14 @@ func (b *Block) Verify() error {
 		}
 	}
 
+	dataHash, err := CalculateDataHash(b.Transactions)
+	if err != nil {
+		return err
+	}
+	if dataHash != b.DataHash {
+		return fmt.Errorf("block (%s) has an invalid data hash", b.Hash(BlockHasher{}))
+	}
+
 	return nil
 }
 
@@ -93,4 +120,18 @@ func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
 	}
 
 	return b.hash
+}
+
+func CalculateDataHash(txs []Transaction) (hash types.Hash, err error) {
+	buf := &bytes.Buffer{}
+
+	for _, tx := range txs {
+		if err = tx.Encode(NewGobTxEncoder(buf)); err != nil {
+			return
+		}
+	}
+
+	hash = sha256.Sum256(buf.Bytes())
+
+	return
 }
