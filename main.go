@@ -5,6 +5,7 @@ import (
 	"blockx/crypto"
 	"blockx/network"
 	"bytes"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"log"
 	"math/rand"
@@ -14,33 +15,54 @@ import (
 
 func main() {
 	trLocal := network.NewLocalTransport("LOCAL")
-	trRemote := network.NewLocalTransport("REMOTE")
+	trRemoteA := network.NewLocalTransport("REMOTE_A")
+	trRemoteB := network.NewLocalTransport("REMOTE_B")
+	trRemoteC := network.NewLocalTransport("REMOTE_C")
 
-	trLocal.Connect(trRemote)
-	trRemote.Connect(trLocal)
+	trLocal.Connect(trRemoteA)
+	trRemoteA.Connect(trRemoteB)
+	trRemoteB.Connect(trRemoteC)
+	trRemoteA.Connect(trLocal)
+
+	initRemoteServer([]network.Transport{trRemoteA, trRemoteB, trRemoteC})
 
 	go func() {
 		for {
-			if err := sendTransaction(trRemote, trLocal.Addr()); err != nil {
+			if err := sendTransaction(trRemoteA, trLocal.Addr()); err != nil {
 				logrus.Error(err)
 			}
-			time.Sleep(time.Second)
+			time.Sleep(time.Second * 2)
 		}
 	}()
 
 	privKey := crypto.GeneratePrivateKey()
+	localServer := makeServer("LOCAL", trLocal, &privKey)
 
+	localServer.Start()
+}
+
+func initRemoteServer(trs []network.Transport) {
+	chars := []byte{'A', 'B', 'C'}
+	for i := 0; i < len(trs); i++ {
+		id := fmt.Sprintf("REMOTE_%c", chars[i])
+		s := makeServer(id, trs[i], nil)
+		go s.Start()
+	}
+}
+
+func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network.Server {
 	opts := network.ServerOpts{
-		PrivateKey: &privKey,
-		ID:         "LOCAL",
-		Transports: []network.Transport{trLocal},
+		PrivateKey: pk,
+		ID:         id,
+		Transports: []network.Transport{tr},
 	}
 
 	s, err := network.NewServer(opts)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.Start()
+
+	return s
 }
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
