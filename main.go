@@ -20,7 +20,6 @@ func main() {
 
 	go func() {
 		for {
-			//trRemote.SendMessage(trLocal.Addr(), []byte("hello,world"))
 			if err := sendTransaction(trRemote, trLocal.Addr()); err != nil {
 				logrus.Error(err)
 			}
@@ -28,9 +27,14 @@ func main() {
 		}
 	}()
 
+	privKey := crypto.GeneratePrivateKey()
+
 	opts := network.ServerOpts{
+		PrivateKey: &privKey,
+		ID:         "LOCAL",
 		Transports: []network.Transport{trLocal},
 	}
+
 	s := network.NewServer(opts)
 	s.Start()
 }
