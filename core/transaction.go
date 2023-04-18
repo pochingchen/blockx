@@ -6,17 +6,19 @@ import (
 	"fmt"
 )
 
-// Transaction 交易
 type Transaction struct {
 	Data      []byte
 	From      crypto.PublicKey
 	Signature *crypto.Signature
-	hash      types.Hash
-	firstSeen int64
+
+	// cached version of the tx data hash
+	hash types.Hash
 }
 
 func NewTransaction(data []byte) *Transaction {
-	return &Transaction{Data: data}
+	return &Transaction{
+		Data: data,
+	}
 }
 
 func (tx *Transaction) Hash(hasher Hasher[*Transaction]) types.Hash {
@@ -26,7 +28,6 @@ func (tx *Transaction) Hash(hasher Hasher[*Transaction]) types.Hash {
 	return tx.hash
 }
 
-// Sign 签名交易
 func (tx *Transaction) Sign(privKey crypto.PrivateKey) error {
 	sig, err := privKey.Sign(tx.Data)
 	if err != nil {
@@ -39,7 +40,6 @@ func (tx *Transaction) Sign(privKey crypto.PrivateKey) error {
 	return nil
 }
 
-// Verify 验证交易签名
 func (tx *Transaction) Verify() error {
 	if tx.Signature == nil {
 		return fmt.Errorf("transaction has no signature")
@@ -58,12 +58,4 @@ func (tx *Transaction) Decode(dec Decoder[*Transaction]) error {
 
 func (tx *Transaction) Encode(enc Encoder[*Transaction]) error {
 	return enc.Encode(tx)
-}
-
-func (tx *Transaction) SetFirstSeen(t int64) {
-	tx.firstSeen = t
-}
-
-func (tx *Transaction) FirstSeen() int64 {
-	return tx.firstSeen
 }

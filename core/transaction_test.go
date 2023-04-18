@@ -7,22 +7,10 @@ import (
 	"testing"
 )
 
-func randomTxWithSignature(t *testing.T) *Transaction {
-	privKey := crypto.GeneratePrivateKey()
-
-	tx := Transaction{Data: []byte("hello")}
-	assert.Nil(t, tx.Sign(privKey))
-
-	return &tx
-}
-
 func TestSignTransaction(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
-
 	tx := &Transaction{
-		Data:      []byte("hello"),
-		From:      privKey.PublicKey(),
-		Signature: nil,
+		Data: []byte("foo"),
 	}
 
 	assert.Nil(t, tx.Sign(privKey))
@@ -32,14 +20,14 @@ func TestSignTransaction(t *testing.T) {
 func TestVerifyTransaction(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
 	tx := &Transaction{
-		Data: []byte("hello"),
+		Data: []byte("foo"),
 	}
 
 	assert.Nil(t, tx.Sign(privKey))
 	assert.Nil(t, tx.Verify())
 
-	otherPrivkey := crypto.GeneratePrivateKey()
-	tx.From = otherPrivkey.PublicKey()
+	otherPrivKey := crypto.GeneratePrivateKey()
+	tx.From = otherPrivKey.PublicKey()
 
 	assert.NotNil(t, tx.Verify())
 }
@@ -52,4 +40,14 @@ func TestTxEncodeDecode(t *testing.T) {
 	txDecoded := new(Transaction)
 	assert.Nil(t, txDecoded.Decode(NewGobTxDecoder(buf)))
 	assert.Equal(t, tx, txDecoded)
+}
+
+func randomTxWithSignature(t *testing.T) *Transaction {
+	privKey := crypto.GeneratePrivateKey()
+	tx := Transaction{
+		Data: []byte("foo"),
+	}
+	assert.Nil(t, tx.Sign(privKey))
+
+	return &tx
 }

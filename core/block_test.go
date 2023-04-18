@@ -3,36 +3,16 @@ package core
 import (
 	"blockx/crypto"
 	"blockx/types"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
 
-func randomBlock(t *testing.T, height uint64, prevBlockHash types.Hash) *Block {
-	privKey := crypto.GeneratePrivateKey()
-	tx := randomTxWithSignature(t)
-
-	header := &Header{
-		Version:       1,
-		PrevBlockHash: prevBlockHash,
-		Timestamp:     time.Now().UnixNano(),
-		Height:        height,
-	}
-
-	b, err := NewBlock(header, []*Transaction{tx})
-	assert.Nil(t, err)
-
-	dataHash, err := CalculateDataHash(b.Transactions)
-	assert.Nil(t, err)
-	b.Header.DataHash = dataHash
-	assert.Nil(t, b.Sign(privKey))
-
-	return b
-}
-
 func TestSignBlock(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
 	b := randomBlock(t, 0, types.Hash{})
+
 	assert.Nil(t, b.Sign(privKey))
 	assert.NotNil(t, b.Signature)
 }
@@ -40,6 +20,7 @@ func TestSignBlock(t *testing.T) {
 func TestVerifyBlock(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
 	b := randomBlock(t, 0, types.Hash{})
+
 	assert.Nil(t, b.Sign(privKey))
 	assert.Nil(t, b.Verify())
 
@@ -49,4 +30,34 @@ func TestVerifyBlock(t *testing.T) {
 
 	b.Height = 100
 	assert.NotNil(t, b.Verify())
+}
+
+func TestDecodeEncodeBlock(t *testing.T) {
+	b := randomBlock(t, 1, types.Hash{})
+	buf := &bytes.Buffer{}
+	assert.Nil(t, b.Encode(NewGobBlockEncoder(buf)))
+
+	bDecode := new(Block)
+	assert.Nil(t, bDecode.Decode(NewGobBlockDecoder(buf)))
+	assert.Equal(t, b, bDecode)
+}
+
+func randomBlock(t *testing.T, height uint64, prevBlockHash types.Hash) *Block {
+	privKey := crypto.GeneratePrivateKey()
+	tx := randomTxWithSignature(t)
+	header := &Header{
+		Version:       1,
+		PrevBlockHash: prevBlockHash,
+		Height:        height,
+		Timestamp:     time.Now().UnixNano(),
+	}
+
+	b, err := NewBlock(header, []*Transaction{tx})
+	assert.Nil(t, err)
+	dataHash, err := CalculateDataHash(b.Transactions)
+	assert.Nil(t, err)
+	b.Header.DataHash = dataHash
+	assert.Nil(t, b.Sign(privKey))
+
+	return b
 }

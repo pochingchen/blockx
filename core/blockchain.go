@@ -6,10 +6,6 @@ import (
 	"sync"
 )
 
-type Chainer interface {
-	AddBlock()
-}
-
 // Blockchain 区块链
 type Blockchain struct {
 	logger    log.Logger
@@ -55,7 +51,7 @@ func (bc *Blockchain) GetHeader(height uint64) (*Header, error) {
 	return bc.headers[height], nil
 }
 
-func (bc *Blockchain) HashBlock(height uint64) bool {
+func (bc *Blockchain) HasBlock(height uint64) bool {
 	return height <= bc.Height()
 }
 

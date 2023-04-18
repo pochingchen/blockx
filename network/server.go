@@ -5,12 +5,13 @@ import (
 	"blockx/crypto"
 	"blockx/types"
 	"bytes"
-	"github.com/go-kit/log"
 	"os"
 	"time"
+
+	"github.com/go-kit/log"
 )
 
-var defaultBlockTime = time.Second * 5
+var defaultBlockTime = 5 * time.Second
 
 type ServerOpts struct {
 	ID            string
@@ -24,7 +25,7 @@ type ServerOpts struct {
 
 type Server struct {
 	ServerOpts
-	txPool      *TxPool
+	mempool     *TxPool
 	chain       *core.Blockchain
 	isValidator bool
 	rpcCh       chan RPC
@@ -47,17 +48,17 @@ func NewServer(opts ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	s := &Server{
 		ServerOpts:  opts,
 		chain:       chain,
-		txPool:      NewTxPool(),
+		mempool:     NewTxPool(1000),
 		isValidator: opts.PrivateKey != nil,
 		rpcCh:       make(chan RPC),
-		quitCh:      make(chan struct{}),
+		quitCh:      make(chan struct{}, 1),
 	}
 
-	// If we don't get any processor from the server options, we're going to use the server as default.
+	// If we dont got any processor from the server options, we going to use
+	// the server as default.
 	if s.RPCProcessor == nil {
 		s.RPCProcessor = s
 	}
@@ -70,7 +71,7 @@ func NewServer(opts ServerOpts) (*Server, error) {
 }
 
 func (s *Server) Start() {
-	s.initTransport()
+	s.initTransports()
 
 free:
 	for {
@@ -80,9 +81,11 @@ free:
 			if err != nil {
 				s.Logger.Log("error", err)
 			}
+
 			if err := s.RPCProcessor.ProcessMessage(msg); err != nil {
 				s.Logger.Log("error", err)
 			}
+
 		case <-s.quitCh:
 			break free
 		}
@@ -98,18 +101,16 @@ func (s *Server) validatorLoop() {
 
 	for {
 		<-ticker.C
-		if err := s.createNewBlock(); err != nil {
-			s.Logger.Log("error", "create block error", err)
-		}
-
+		s.createNewBlock()
 	}
 }
 
 func (s *Server) ProcessMessage(msg *DecodedMessage) error {
-
 	switch t := msg.Data.(type) {
 	case *core.Transaction:
 		return s.processTransaction(t)
+	case *core.Block:
+		return s.processBlock(t)
 	}
 
 	return nil
@@ -121,13 +122,23 @@ func (s *Server) broadcast(payload []byte) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (s *Server) processBlock(b *core.Block) error {
+	if err := s.chain.AddBlock(b); err != nil {
+		return err
+	}
+
+	go s.broadcastBlock(b)
 
 	return nil
 }
 
 func (s *Server) processTransaction(tx *core.Transaction) error {
 	hash := tx.Hash(core.TxHasher{})
-	if s.txPool.Has(hash) {
+
+	if s.mempool.Contains(hash) {
 		return nil
 	}
 
@@ -135,21 +146,28 @@ func (s *Server) processTransaction(tx *core.Transaction) error {
 		return err
 	}
 
-	tx.SetFirstSeen(time.Now().UnixNano())
-
-	s.Logger.Log(
-		"msg", "adding new tx to txpool",
-		"hash", hash, "txpoolLength",
-		s.txPool.Len(),
-	)
+	// s.Logger.Log(
+	// 	"msg", "adding new tx to mempool",
+	// 	"hash", hash,
+	// 	"mempoolPending", s.mempool.PendingCount(),
+	// )
 
 	go s.broadcastTx(tx)
 
-	return s.txPool.Add(tx)
+	s.mempool.Add(tx)
+
+	return nil
 }
 
 func (s *Server) broadcastBlock(b *core.Block) error {
-	return nil
+	buf := &bytes.Buffer{}
+	if err := b.Encode(core.NewGobBlockEncoder(buf)); err != nil {
+		return err
+	}
+
+	msg := NewMessage(MessageTypeBlock, buf.Bytes())
+
+	return s.broadcast(msg.Bytes())
 }
 
 func (s *Server) broadcastTx(tx *core.Transaction) error {
@@ -163,7 +181,7 @@ func (s *Server) broadcastTx(tx *core.Transaction) error {
 	return s.broadcast(msg.Bytes())
 }
 
-func (s *Server) initTransport() {
+func (s *Server) initTransports() {
 	for _, tr := range s.Transports {
 		go func(tr Transport) {
 			for rpc := range tr.Consume() {
@@ -179,9 +197,13 @@ func (s *Server) createNewBlock() error {
 		return err
 	}
 
-	txs := s.txPool.Transactions()
+	// For now we are going to use all transactions that are in the pending pool
+	// Later on when we know the internal structure of our transaction
+	// we will implement some kind of complexity function to determine how
+	// many transactions can be included in a block.
+	txx := s.mempool.Pending()
 
-	block, err := core.NewBlockFromPrevHeader(currentHeader, txs)
+	block, err := core.NewBlockFromPrevHeader(currentHeader, txx)
 	if err != nil {
 		return err
 	}
@@ -194,21 +216,23 @@ func (s *Server) createNewBlock() error {
 		return err
 	}
 
-	s.txPool.Flush()
+	// TODO(@anthdm): pending pool of tx should only reflect on validator nodes.
+	// Right now "normal nodes" does not have their pending pool cleared.
+	s.mempool.ClearPending()
+
+	go s.broadcastBlock(block)
 
 	return nil
 }
 
 func genesisBlock() *core.Block {
 	header := &core.Header{
-		Version:       1,
-		DataHash:      types.Hash{},
-		PrevBlockHash: types.Hash{},
-		Timestamp:     0,
-		Height:        0,
+		Version:   1,
+		DataHash:  types.Hash{},
+		Height:    0,
+		Timestamp: 000000,
 	}
 
 	b, _ := core.NewBlock(header, nil)
-
 	return b
 }

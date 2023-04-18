@@ -10,13 +10,12 @@ import (
 	"time"
 )
 
-// Header 区块头
 type Header struct {
 	Version       uint32
 	DataHash      types.Hash
 	PrevBlockHash types.Hash
-	Timestamp     int64
 	Height        uint64
+	Timestamp     int64
 }
 
 func (h *Header) Bytes() []byte {
@@ -27,38 +26,38 @@ func (h *Header) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// Block 区块
 type Block struct {
 	*Header
 	Transactions []*Transaction
 	Validator    crypto.PublicKey
 	Signature    *crypto.Signature
-	hash         types.Hash
+
+	// Cached version of the header hash
+	hash types.Hash
 }
 
-// NewBlock 创建新区块
-func NewBlock(h *Header, txs []*Transaction) (*Block, error) {
+func NewBlock(h *Header, txx []*Transaction) (*Block, error) {
 	return &Block{
 		Header:       h,
-		Transactions: txs,
+		Transactions: txx,
 	}, nil
 }
 
-func NewBlockFromPrevHeader(prevHeader *Header, txs []*Transaction) (*Block, error) {
-	dataHash, err := CalculateDataHash(txs)
+func NewBlockFromPrevHeader(prevHeader *Header, txx []*Transaction) (*Block, error) {
+	dataHash, err := CalculateDataHash(txx)
 	if err != nil {
 		return nil, err
 	}
 
 	header := &Header{
 		Version:       1,
+		Height:        prevHeader.Height + 1,
 		DataHash:      dataHash,
 		PrevBlockHash: BlockHasher{}.Hash(prevHeader),
 		Timestamp:     time.Now().UnixNano(),
-		Height:        prevHeader.Height + 1,
 	}
 
-	return NewBlock(header, txs)
+	return NewBlock(header, txx)
 }
 
 func (b *Block) AddTransaction(tx *Transaction) {
@@ -66,7 +65,7 @@ func (b *Block) AddTransaction(tx *Transaction) {
 }
 
 func (b *Block) Sign(privKey crypto.PrivateKey) error {
-	sig, err := privKey.Sign(b.Bytes())
+	sig, err := privKey.Sign(b.Header.Bytes())
 	if err != nil {
 		return err
 	}
@@ -103,17 +102,14 @@ func (b *Block) Verify() error {
 	return nil
 }
 
-// Decode 解码
 func (b *Block) Decode(dec Decoder[*Block]) error {
 	return dec.Decode(b)
 }
 
-// Encode 编码
 func (b *Block) Encode(enc Encoder[*Block]) error {
 	return enc.Encode(b)
 }
 
-// Hash 计算区块哈希
 func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
 	if b.hash.IsZero() {
 		b.hash = hasher.Hash(b.Header)
@@ -122,10 +118,10 @@ func (b *Block) Hash(hasher Hasher[*Header]) types.Hash {
 	return b.hash
 }
 
-func CalculateDataHash(txs []*Transaction) (hash types.Hash, err error) {
+func CalculateDataHash(txx []*Transaction) (hash types.Hash, err error) {
 	buf := &bytes.Buffer{}
 
-	for _, tx := range txs {
+	for _, tx := range txx {
 		if err = tx.Encode(NewGobTxEncoder(buf)); err != nil {
 			return
 		}

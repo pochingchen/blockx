@@ -24,27 +24,35 @@ func main() {
 	trRemoteB.Connect(trRemoteC)
 	trRemoteA.Connect(trLocal)
 
-	initRemoteServer([]network.Transport{trRemoteA, trRemoteB, trRemoteC})
+	initRemoteServers([]network.Transport{trRemoteA, trRemoteB, trRemoteC})
 
 	go func() {
 		for {
 			if err := sendTransaction(trRemoteA, trLocal.Addr()); err != nil {
 				logrus.Error(err)
 			}
-			time.Sleep(time.Second * 2)
+			time.Sleep(2 * time.Second)
 		}
+	}()
+
+	go func() {
+		time.Sleep(7 * time.Second)
+
+		trLate := network.NewLocalTransport("LATE_REMOTE")
+		trRemoteC.Connect(trLate)
+		lateServer := makeServer(string(trLate.Addr()), trLate, nil)
+
+		go lateServer.Start()
 	}()
 
 	privKey := crypto.GeneratePrivateKey()
 	localServer := makeServer("LOCAL", trLocal, &privKey)
-
 	localServer.Start()
 }
 
-func initRemoteServer(trs []network.Transport) {
-	chars := []byte{'A', 'B', 'C'}
+func initRemoteServers(trs []network.Transport) {
 	for i := 0; i < len(trs); i++ {
-		id := fmt.Sprintf("REMOTE_%c", chars[i])
+		id := fmt.Sprintf("REMOTE_%d", i)
 		s := makeServer(id, trs[i], nil)
 		go s.Start()
 	}
@@ -67,12 +75,9 @@ func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
 	privKey := crypto.GeneratePrivateKey()
-
 	data := []byte(strconv.FormatInt(int64(rand.Intn(1000000000)), 10))
 	tx := core.NewTransaction(data)
-
 	tx.Sign(privKey)
-
 	buf := &bytes.Buffer{}
 	if err := tx.Encode(core.NewGobTxEncoder(buf)); err != nil {
 		return err
