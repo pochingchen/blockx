@@ -197,13 +197,13 @@ func (s *Server) createNewBlock() error {
 		return err
 	}
 
-	// For now we are going to use all transactions that are in the pending pool
+	// For now, we are going to use all transactions that are in the pending pool
 	// Later on when we know the internal structure of our transaction
 	// we will implement some kind of complexity function to determine how
 	// many transactions can be included in a block.
-	txx := s.mempool.Pending()
+	txs := s.mempool.Pending()
 
-	block, err := core.NewBlockFromPrevHeader(currentHeader, txx)
+	block, err := core.NewBlockFromPrevHeader(currentHeader, txs)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (s *Server) createNewBlock() error {
 		return err
 	}
 
-	// TODO(@anthdm): pending pool of tx should only reflect on validator nodes.
+	// TODO: pending pool of tx should only reflect on validator nodes.
 	// Right now "normal nodes" does not have their pending pool cleared.
 	s.mempool.ClearPending()
 
