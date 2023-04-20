@@ -19,23 +19,13 @@ func TestStack(t *testing.T) {
 }
 
 func TestVM(t *testing.T) {
-	// 1 + 2 = 3
-	// 1
-	// push stack
-	// 2
-	// push stack
-	// add
-	// 3
-	// push stack
-
-	data := []byte{0x03, 0x0a, 0x02, 0x0a, 0x0e}
-	// data := []byte{0x03, 0x0a, 0x46, 0x0c, 0x4f, 0x0c, 0x4f, 0x0c, 0x0d}
-	vm := NewVM(data)
+	data := []byte{0x03, 0x0a, 0x46, 0x0c, 0x4f, 0x0c, 0x4f, 0x0c, 0x0d, 0x05, 0x0a, 0x0f}
+	state := NewState()
+	vm := NewVM(data, state)
 	assert.Nil(t, vm.Run())
 
-	result := vm.stack.Pop().(int)
-
-	assert.Equal(t, 1, result)
-
-	// assert.Equal(t, "FOO", string(result))
+	valueBytes, err := state.Get([]byte("FOO"))
+	assert.Nil(t, err)
+	value := DeserializeInt64(valueBytes)
+	assert.Equal(t, value, int64(5))
 }
