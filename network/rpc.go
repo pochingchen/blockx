@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
+	"net"
 )
 
 type MessageType byte
@@ -20,7 +21,7 @@ const (
 )
 
 type RPC struct {
-	From    NetAddr
+	From    net.Addr
 	Payload io.Reader
 }
 
@@ -44,7 +45,7 @@ func (msg *Message) Bytes() []byte {
 }
 
 type DecodedMessage struct {
-	From NetAddr
+	From net.Addr
 	Data any
 }
 
