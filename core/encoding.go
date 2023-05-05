@@ -1,14 +1,13 @@
 package core
 
 import (
-	"crypto/elliptic"
 	"encoding/gob"
 	"io"
 )
 
 //
-// For now we GOB encoding is used for fast bootstrapping of the project
-// in a later phase I'm considering using Protobuffers as default encoding / decoding.
+// For now, we GOB encoding is used for fast bootstrapping of the project
+// in a later phase I'm considering using Protobuf as default encoding / decoding.
 //
 
 type Encoder[T any] interface {
@@ -73,8 +72,4 @@ func NewGobBlockDecoder(r io.Reader) *GobBlockDecoder {
 
 func (dec *GobBlockDecoder) Decode(b *Block) error {
 	return gob.NewDecoder(dec.r).Decode(b)
-}
-
-func init() {
-	gob.Register(elliptic.P256())
 }

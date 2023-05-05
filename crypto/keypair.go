@@ -37,24 +37,15 @@ func GeneratePrivateKey() PrivateKey {
 	return PrivateKey{key: key}
 }
 
-// PublicKey 从私钥获取公钥
 func (k PrivateKey) PublicKey() PublicKey {
-	return PublicKey{Key: &k.key.PublicKey}
+	return elliptic.MarshalCompressed(k.key.PublicKey, k.key.PublicKey.X, k.key.PublicKey.Y)
 }
 
-// PublicKey 公钥
-type PublicKey struct {
-	Key *ecdsa.PublicKey
-}
-
-// Bytes 公钥转字节数组
-func (k PublicKey) Bytes() []byte {
-	return elliptic.Marshal(k.Key, k.Key.X, k.Key.Y)
-}
+type PublicKey []byte
 
 // Address 由公钥生成地址
 func (k PublicKey) Address() types.Address {
-	h := sha256.Sum256(k.Bytes())
+	h := sha256.Sum256(k)
 	return types.AddressFromBytes(h[len(h)-20:])
 }
 
@@ -63,7 +54,13 @@ type Signature struct {
 	R, S *big.Int
 }
 
-// Verify 验证签名
 func (sig Signature) Verify(pubKey PublicKey, data []byte) bool {
-	return ecdsa.Verify(pubKey.Key, data, sig.R, sig.S)
+	x, y := elliptic.UnmarshalCompressed(elliptic.P256(), pubKey)
+	key := &ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     x,
+		Y:     y,
+	}
+
+	return ecdsa.Verify(key, data, sig.R, sig.S)
 }

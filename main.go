@@ -22,7 +22,7 @@ func main() {
 	go remoteNodeB.Start()
 
 	go func() {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 11)
 		lateNode := makeServer("LATE_NODE", nil, ":5005", []string{":4000"})
 		go lateNode.Start()
 	}()
