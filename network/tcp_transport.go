@@ -21,7 +21,7 @@ func (p *TCPPeer) readLoop(rpcCh chan RPC) {
 	for {
 		n, err := p.conn.Read(buf)
 		if err != nil {
-			fmt.Printf("read error: %s", err)
+			fmt.Printf("read error: %s\n", err)
 			continue
 		}
 
@@ -64,7 +64,7 @@ func (t *TCPTransport) readLoop(peer *TCPPeer) {
 	for {
 		n, err := peer.conn.Read(buf)
 		if err != nil {
-			fmt.Printf("read error: %s", err)
+			fmt.Printf("read error: %s\n", err)
 			continue
 		}
 
@@ -88,9 +88,5 @@ func (t *TCPTransport) acceptLoop() {
 		}
 
 		t.peerCh <- peer
-
-		fmt.Printf("new incoming TCP connection => %+v\n", conn)
-
-		// go t.readLoop(peer)
 	}
 }

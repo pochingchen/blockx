@@ -3,6 +3,7 @@ package network
 import (
 	"blockx/core"
 	"bytes"
+	"crypto/elliptic"
 	"encoding/gob"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ const (
 	MessageTypeGetBlocks MessageType = 0x3
 	MessageTypeStatus    MessageType = 0x4
 	MessageTypeGetStatus MessageType = 0x5
+	MessageTypeBlocks    MessageType = 0x6
 )
 
 type RPC struct {
@@ -100,11 +102,35 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodedMessage, error) {
 			Data: statusMessage,
 		}, nil
 
+	case MessageTypeGetBlocks:
+		getBlocks := new(GetBlocksMessage)
+		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(getBlocks); err != nil {
+			return nil, err
+		}
+
+		return &DecodedMessage{
+			From: rpc.From,
+			Data: getBlocks,
+		}, nil
+
+	case MessageTypeBlocks:
+		blocks := new(BlocksMessage)
+		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(blocks); err != nil {
+			return nil, err
+		}
+		return &DecodedMessage{
+			From: rpc.From,
+			Data: blocks,
+		}, nil
 	default:
-		return nil, fmt.Errorf("invalid message type %x", msg.Header)
+		return nil, fmt.Errorf("invalid message header %x", msg.Header)
 	}
 }
 
 type RPCProcessor interface {
 	ProcessMessage(msg *DecodedMessage) error
+}
+
+func init() {
+	gob.Register(elliptic.P256())
 }

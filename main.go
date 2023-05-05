@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"log"
 	"net"
+	"time"
 )
 
 func main() {
@@ -14,15 +15,21 @@ func main() {
 	localNode := makeServer("LOCAL_NODE", &privKey, ":3000", []string{":4000"})
 	go localNode.Start()
 
-	remoteNode := makeServer("REMOTE_NODE", nil, ":4000", []string{":5000"})
+	remoteNode := makeServer("REMOTE_NODE", nil, ":4000", []string{":5002"})
 	go remoteNode.Start()
 
-	remoteNodeB := makeServer("REMOTE_NODE_B", nil, ":5000", nil)
+	remoteNodeB := makeServer("REMOTE_NODE_B", nil, ":5002", nil)
 	go remoteNodeB.Start()
 
-	// time.Sleep(1 * time.Second)
+	go func() {
+		time.Sleep(time.Second * 5)
+		lateNode := makeServer("LATE_NODE", nil, ":5005", []string{":4000"})
+		go lateNode.Start()
+	}()
 
-	// tcpTester()
+	time.Sleep(1 * time.Second)
+
+	tcpTester()
 
 	select {}
 }
